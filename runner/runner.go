@@ -1,16 +1,25 @@
 package runner
 
 import (
-	"fmt"
+	"errors"
+	"time"
 )
 
 type Runner struct {
-
-	tasks []func() error
+	timeout  <-chan time.Time
+	result   chan error
+	complete chan bool
+	tasks    []func() error
 }
 
-func New() *Runner {
-	return &Runner{}
+var ErrTimeout = errors.New("Timeout")
+
+func New(t time.Duration) *Runner {
+	return &Runner{
+		timeout:  time.After(t),
+		result:   make(chan error, 1),
+		complete: make(chan bool, 1),
+	}
 }
 
 func (r *Runner) AddTasks(tasks ...func() error) {
@@ -18,11 +27,22 @@ func (r *Runner) AddTasks(tasks ...func() error) {
 }
 
 func (r *Runner) Start() error {
-	fmt.Println("Running")
+	go func() {
+		for _, t := range r.tasks {
+			select {
+			case <-r.timeout:
+				r.result <- ErrTimeout
+				break
+			default:
+				t()
+			}
+		}
+	}()
 
-	for _, t := range r.tasks {
-		t()
+	select {
+	case <-r.timeout:
+		return ErrTimeout
+	case result := <- r.result:
+		return result
 	}
-
-	return nil
 }

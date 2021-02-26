@@ -5,8 +5,8 @@ import "time"
 import "fmt"
 
 func createTask(n int) func() error {
-	return func () error {
-		time.Sleep(time.Second)
+	return func() error {
+		time.Sleep(time.Duration(n) * time.Second)
 		fmt.Println("Executing task: ", n)
 		return nil
 	}
@@ -15,14 +15,12 @@ func createTask(n int) func() error {
 func main() {
 
 	// Create a runner that
-	// *. will stop running when all tasks complete
-	// *. will stop running when a timeout happens
 	// *. will stop running when an interrupt is received
-	// *. will stop running if an error is thrown by a task
 
+	r := runner.New(time.Duration(2) * time.Second)
+	r.AddTasks(createTask(0), createTask(1), createTask(2), createTask(3), createTask(4))
 
-	r := runner.New()
-	r.AddTasks(createTask(0), createTask(1), createTask(2))
+	fmt.Println("Running")
 
 	err := r.Start()
 
