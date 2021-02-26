@@ -9,9 +9,8 @@ import (
 
 type Runner struct {
 	timeout  <-chan time.Time
-	interrupt <-chan os.Signal
+	interrupt chan os.Signal
 	result   chan error
-	complete chan bool
 	tasks    []func() error
 }
 
@@ -24,9 +23,8 @@ func New(t time.Duration) *Runner {
 
 	return &Runner{
 		timeout:  time.After(t),
-		result:   make(chan error, 1),
+		result:   make(chan error),
 		interrupt: interrupt,
-		complete: make(chan bool, 1),
 	}
 }
 
@@ -36,17 +34,7 @@ func (r *Runner) AddTasks(tasks ...func() error) {
 
 func (r *Runner) Start() error {
 	go func() {
-		for _, t := range r.tasks {
-			select {
-			case <-r.timeout:
-				r.result <- ErrTimeout
-				break
-			case <-r.interrupt:
-				r.result <- ErrInterrupt
-			default:
-				t()
-			}
-		}
+		r.result <- r.run()
 	}()
 
 	select {
@@ -55,4 +43,18 @@ func (r *Runner) Start() error {
 	case result := <- r.result:
 		return result
 	}
+}
+
+func (r *Runner) run() error {
+	for _, t := range r.tasks {
+		select {
+		case <-r.interrupt:
+			signal.Stop(r.interrupt)
+			return ErrInterrupt
+		default:
+			t()
+		}
+	}
+
+	return nil
 }

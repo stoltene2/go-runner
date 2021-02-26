@@ -14,11 +14,10 @@ func createTask(n int) func() error {
 
 func main() {
 
-	// Create a runner that
-	// *. will stop running when an interrupt is received
-
-	r := runner.New(time.Duration(2) * time.Second)
-	r.AddTasks(createTask(0), createTask(1), createTask(2), createTask(3), createTask(4))
+	// Create a runner that will
+	// Stop on timeout, interrupt, or success
+	r := runner.New(time.Duration(4) * time.Second)
+	r.AddTasks(createTask(1), createTask(2), createTask(3), createTask(4), createTask(5))
 
 	fmt.Println("Running")
 
