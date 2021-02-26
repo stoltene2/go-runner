@@ -2,22 +2,30 @@ package runner
 
 import (
 	"errors"
+	"os"
+	"os/signal"
 	"time"
 )
 
 type Runner struct {
 	timeout  <-chan time.Time
+	interrupt <-chan os.Signal
 	result   chan error
 	complete chan bool
 	tasks    []func() error
 }
 
 var ErrTimeout = errors.New("Timeout")
+var ErrInterrupt = errors.New("Interrupt received")
 
 func New(t time.Duration) *Runner {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
 	return &Runner{
 		timeout:  time.After(t),
 		result:   make(chan error, 1),
+		interrupt: interrupt,
 		complete: make(chan bool, 1),
 	}
 }
@@ -33,6 +41,8 @@ func (r *Runner) Start() error {
 			case <-r.timeout:
 				r.result <- ErrTimeout
 				break
+			case <-r.interrupt:
+				r.result <- ErrInterrupt
 			default:
 				t()
 			}
